@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bounce Bloom</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: linear-gradient(to top, #87CEEB, #ffffff);
+            font-family: Arial, sans-serif;
+            text-align: center;
+            touch-action: manipulation;
+        }
+        canvas {
+            display: block;
+        }
+        .message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        #startMessage {
+            display: block;
+        }
+        #gameCompleteMessage {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="startMessage" class="message">🚀 Tap to bounce the seed! 🚀</div>
+    <div id="gameCompleteMessage" class="message">🎉 Congrats! Game Completed! 🎉<br>Wait for updates coming soon...</div>
+    
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const startMessage = document.getElementById("startMessage");
+        const gameCompleteMessage = document.getElementById("gameCompleteMessage");
+        let gameStarted = false;
+
+        let seed = {
+            x: canvas.width / 2,
+            y: canvas.height - 100,
+            radius: 20,
+            color: "#8B4513",
+            dy: 0,
+            dx: 0, 
+            speed: 5, 
+            gravity: 0.5,
+            bounce: -12,
+            growing: 0,
+            maxGrowth1: 15,
+            maxGrowth2: 40,
+            gameCompleted: false
+        };
+
+        let sunlights = [];
+        function createSunlight() {
+            if (!seed.gameCompleted) {
+                sunlights.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height / 2,
+                    radius: 15,
+                    color: "gold"
+                });
+            }
+        }
+        for (let i = 0; i < 3; i++) createSunlight();
+
+        let obstacles = [];
+        function createObstacle() {
+            for (let i = 0; i < 6; i++) { 
+                obstacles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * (canvas.height - 200),
+                    width: 50 + Math.random() * 50,
+                    height: 10 + Math.random() * 10,
+                    color: "#FF6347"
+                });
+            }
+        }
+        createObstacle();
+
+        function drawSeed() {
+            ctx.beginPath();
+            ctx.arc(seed.x, seed.y, seed.radius, 0, Math.PI * 2);
+            ctx.fillStyle = seed.color;
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function drawSunlight() {
+            sunlights.forEach((sunlight) => {
+                ctx.beginPath();
+                ctx.arc(sunlight.x, sunlight.y, sunlight.radius, 0, Math.PI * 2);
+                ctx.fillStyle = sunlight.color;
+                ctx.fill();
+                ctx.closePath();
+            });
+        }
+
+        function drawObstacles() {
+            obstacles.forEach(obstacle => {
+                ctx.fillStyle = obstacle.color;
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            });
+        }
+
+        function update() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (gameStarted) {
+                seed.dy += seed.gravity;
+                seed.y += seed.dy;
+                seed.x += seed.dx; 
+                
+                if (seed.y + seed.radius >= canvas.height) {
+                    seed.y = canvas.height - seed.radius;
+                    seed.dy = seed.bounce;
+                }
+
+                if (seed.x + seed.radius >= canvas.width || seed.x - seed.radius <= 0) {
+                    seed.dx = 0; 
+                }
+                
+                sunlights.forEach((sunlight, index) => {
+                    if (
+                        Math.hypot(seed.x - sunlight.x, seed.y - sunlight.y) < seed.radius + sunlight.radius
+                    ) {
+                        seed.growing++;
+                        sunlights.splice(index, 1);
+                        createSunlight();
+                        
+                        if (seed.growing >= seed.maxGrowth1 && seed.growing < seed.maxGrowth2) {
+                            seed.color = "green";
+                            seed.radius = 35;
+                        } else if (seed.growing >= seed.maxGrowth2) {
+                            seed.color = "#FF69B4";
+                            seed.radius = 40;
+                            seed.gameCompleted = true;
+                            gameCompleteMessage.style.display = "block";
+                            sunlights = [];
+                        }
+                    }
+                });
+
+                obstacles.forEach(obstacle => {
+                    if (
+                        seed.x + seed.radius > obstacle.x &&
+                        seed.x - seed.radius < obstacle.x + obstacle.width &&
+                        seed.y + seed.radius > obstacle.y &&
+                        seed.y - seed.radius < obstacle.y + obstacle.height
+                    ) {
+                        seed.y = obstacle.y - seed.radius;
+                        seed.dy = seed.bounce;
+                    }
+                });
+            }
+            
+            drawSunlight();
+            drawObstacles();
+            drawSeed();
+            requestAnimationFrame(update);
+        }
+        
+        function startBounce() {
+            if (!gameStarted) {
+                gameStarted = true;
+                startMessage.style.display = "none";
+            }
+            seed.dy = seed.bounce;
+        }
+
+        // Prevent Scrolling on Mobile
+        window.addEventListener("touchstart", (event) => {
+            event.preventDefault();
+            startBounce();
+        }, { passive: false });
+
+        window.addEventListener("click", startBounce);
+
+        window.addEventListener("mousemove", (event) => {
+            seed.x = event.clientX;
+        });
+
+        window.addEventListener("touchmove", (event) => {
+            event.preventDefault();  // Stops the page from scrolling!
+            seed.x = event.touches[0].clientX;
+        }, { passive: false });
+
+        update();
+    </script>
+</body>
+</html>
